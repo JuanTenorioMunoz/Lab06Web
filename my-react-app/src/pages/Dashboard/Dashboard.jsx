@@ -1,13 +1,21 @@
-import { useSelector } from 'react-redux';
 import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { db, auth } from '../../services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import Survey from '../../components/Survey';
 
-
 const Dashboard = () => {
-  const uid = useSelector((state) => state.auth.uid);
+  const [uid, setUid] = useState(null);
   const [userData, setUserData] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) setUid(user.uid);
+      else setUid(null); 
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!uid) return;
@@ -19,7 +27,8 @@ const Dashboard = () => {
     fetchData();
   }, [uid]);
 
-  if (!userData) return <p>Cargando...</p>;
+  if (!uid) return <p>Esperando autenticación...</p>;
+  if (!userData) return <p>Cargando perfil...</p>;
 
   return (
     <>
@@ -28,9 +37,20 @@ const Dashboard = () => {
       <p>Fecha de nacimiento: {userData.birthDate}</p>
 
       {!userData.profileCompleted ? (
-        <Survey uid={uid} />
+        <Survey uid={uid} onComplete={() => {
+          const refetch = async () => {
+            const userRef = doc(db, 'users', uid);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) setUserData(userSnap.data());
+          };
+          refetch();
+        }} />
       ) : (
-        <p>Tu perfil está completo ✅</p>
+        <>
+          <p>Avatar: {userData.avatar}</p>
+          <p>Descripción: {userData.description}</p>
+          <p>Intereses: {userData.interests?.join(', ')}</p>
+        </>
       )}
     </>
   );

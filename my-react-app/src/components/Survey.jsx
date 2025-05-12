@@ -22,7 +22,7 @@ const Survey = ({ uid }) => {
       avatar,
       description,
       interests,
-      profileCompleted: true
+      profileIsComplete: true
     });
     alert('Perfil completado');
   };
